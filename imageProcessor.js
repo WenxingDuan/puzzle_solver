@@ -112,7 +112,7 @@ class ImageProcessor {
         
         // Check cache first with a compound key
         const cacheKey = `${angleDegrees}_${mat.cols}_${mat.rows}`;
-        if (this.rotationCache[cacheKey]) {
+        if (CONFIG.ALGORITHM.USE_COMMON_ANGLES_CACHE && this.rotationCache[cacheKey]) {
             return this.rotationCache[cacheKey].clone();
         }
         
@@ -171,8 +171,8 @@ class ImageProcessor {
         
         // Create rotation matrix
         const rotationMatrix = cv.getRotationMatrix2D(center, angleDegrees, 1);
-        rotationMatrix.data[2] += (newWidth / 2) - center.x;
-        rotationMatrix.data[5] += (newHeight / 2) - center.y;
+        rotationMatrix.data64F[2] += (newWidth / 2) - center.x;
+        rotationMatrix.data64F[5] += (newHeight / 2) - center.y;
         
         const rotated = new cv.Mat();
         const dsize = new cv.Size(newWidth, newHeight);

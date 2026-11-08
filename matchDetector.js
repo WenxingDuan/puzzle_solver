@@ -82,19 +82,17 @@ class MatchDetector {
             
             // Optimization: Early termination criteria
             let earlyTermination = false;
-            let iterationCount = 0;
             
             // Process each rotation in order of likelihood
             for (let rotation of rotations) {
-                if (earlyTermination || iterationCount > CONFIG.MATCH.MAX_SEARCH_ITERATIONS) break;
+                if (earlyTermination) break;
                 
                 // Rotate the template
                 const rotatedTemplate = imageProcessor.rotateImage(template.blurred, rotation);
                 
                 // Try each scale
                 for (let scale of scales) {
-                    if (earlyTermination || iterationCount > CONFIG.MATCH.MAX_SEARCH_ITERATIONS) break;
-                    iterationCount++;
+                    if (earlyTermination) break;
                     
                     // Get scaled template
                     const scaledTemplate = imageProcessor.resizeTemplate(rotatedTemplate, scale);

@@ -1,178 +1,89 @@
-![Jigsaw Puzzle Solver](logo.png)
-# Jigsaw Puzzle Solver
+# 罗塞塔石碑拼图定位助手
 
-An advanced web-based application that uses computer vision to help find where puzzle pieces fit in complex puzzles with 500+ pieces.
+针对大英博物馆 800 片罗塞塔石碑拼图的本地助手。电脑负责图像处理，安卓手机通过同一局域网中的网页拍照：上传单块照片后，自动去背景、分离黑白文字，并在固定石碑底图上给出候选位置。
 
-## 🧩 Overview
+本项目基于 [Benjamin-Wegener/jigsaw_puzzle_solver](https://github.com/Benjamin-Wegener/jigsaw_puzzle_solver) 修改，保留原版浏览器相机页面与许可证。
 
-Puzzle Detector Pro is a sophisticated puzzle-solving assistant that uses your device's camera to detect where individual puzzle pieces belong in a completed puzzle. Using advanced computer vision algorithms through OpenCV.js, it features high-resolution image capture with optimized detection for both simple and complex puzzles.
+## 功能
 
-## ✨ Features
+- 内置完整石碑底图，无需上传参考图。
+- 自动提取单块拼图，支持手动框选修正外轮廓。
+- 在拼图内部校正光照、压制灰色颗粒，生成可调强度的黑底白字预览。
+- 使用文字特征和带掩膜的模板匹配，搜索旋转、缩放及轻微比例变化。
+- 按石碑真实轮廓过滤候选，排除透明背景；判断依据是拼图本体，而非外接矩形的空角。
+- 同时查看整碑位置、方向对齐后的拼图和对应文字局部；支持切换候选、缩放拖动和叠加查看。
+- 点击“拍下一块”连续使用；调整预处理参数后清除旧定位结果。
 
-### Core Features
-- **High-Resolution Photo Capture**: Takes full-resolution photos instead of video frames for reference images
-- **Multi-Scale Detection**: Works with puzzles of various sizes, from simple to 500+ pieces
-- **Dual Camera View**: Capture the reference puzzle image in the upper view and detect individual pieces in the lower view
-- **Portrait Mode Enforcement**: Automatically detects device orientation and prompts for portrait mode
-- **Mobile-Friendly**: Optimized for use on smartphones and tablets
-- **No Server Required**: Runs entirely in the browser with no data sent to any server
+## 本地运行
 
-### Advanced Detection Technology
-- **Multi-Resolution Image Pyramid**: Uses 4 levels of resolution for efficient detection
-- **Two-Stage Detection Process**: Quick coarse matching followed by precise refinement
-- **Adaptive Scale Increments**: Uses finer increments (0.05) for small pieces in 500+ piece puzzles
-- **Region of Interest (ROI) Optimization**: Focuses detailed detection in promising areas only
-- **Multiple Matching Algorithms**: Combines different OpenCV matching methods for better results
-- **Histogram Equalization**: Improves detection under varying lighting conditions
-- **Smart Resource Management**: Caches processed images for better performance
+需要 Python 3.9+ 和现代浏览器。当前版本在 Windows、Chrome 和安卓尺寸的浏览器环境中验证过。
 
-## 🚀 Getting Started
+```sh
+git clone https://github.com/WenxingDuan/puzzle_solver.git
+cd puzzle_solver
+python -m venv .venv
+```
 
-### Prerequisites
+Windows：
 
-- A modern web browser with JavaScript enabled
-- Camera access on your device
-- For best results, use good lighting conditions
+```powershell
+.\.venv\Scripts\python.exe -m pip install -r requirements.txt
+.\.venv\Scripts\python.exe serve.py
+```
 
-### Installation
+安装依赖后，也可以双击 `start.cmd`。启动器优先使用项目内的 `.venv`，否则使用当前系统的 `python`。
 
-1. Clone this repository:
-   ```
-   git clone https://github.com/yourusername/puzzle-detector-pro.git
-   ```
+macOS / Linux：
 
-2. Navigate to the project directory:
-   ```
-   cd puzzle-detector-pro
-   ```
+```sh
+.venv/bin/python -m pip install -r requirements.txt
+.venv/bin/python serve.py
+```
 
-3. Open `index.html` in a web server. 
-   - For local development, you can use:
-     ```
-     npx http-server .
-     ```
-   - Or with Python:
-     ```
-     python -m http.server
-     ```
+电脑访问 [http://localhost:8765/](http://localhost:8765/)。手机连接同一个局域网，访问 `http://<电脑的局域网 IP>:8765/`。Windows 可用 `ipconfig` 查询地址。电脑需要保持开机；如果系统询问网络访问权限，请允许用于当前局域网。
 
-4. Access through your browser (usually at http://localhost:8080)
+关闭运行窗口或按 `Ctrl+C` 停止服务。
 
-## 📱 How to Use
+## 使用
 
-1. **Capture High-Resolution Reference Image**:
-   - Place your completed puzzle in view of the camera
-   - Tap the upper section to capture a high-resolution photo
-   - The app will automatically process the image for optimal detection
+1. 点击“拍一块”或“选择照片”，正面靠近拍摄单块拼图。
+2. 程序自动去背景并定位，通常需要约 20–30 秒，实际时间取决于电脑性能。
+3. 核对整碑标记和两幅局部对照图，按照旋转提示放置拼图。必要时切换其他候选。
+4. 如果外轮廓截错，展开调整区，框住整块拼图并保留一点背景。如果文字残缺或底纹过多，调节黑白分割强度，然后点击“用当前效果定位”。
+5. 点击“拍下一块”继续。
 
-2. **Detect Puzzle Pieces**:
-   - Once the reference is captured, the lower section activates
-   - Position individual puzzle pieces within the green outline
-   - The app will show where in the reference image your piece belongs
-   - Confidence percentage indicates how certain the match is
+候选位置需要目视核对。当前搜索重点覆盖四个直角方向附近的轻微倾斜，以及约 10% 的横向比例变化；强透视、严重反光、模糊或文字过少的照片可能无法可靠定位。
 
-3. **Reset**:
-   - Double-tap the lower section or tap the upper section to reset and recapture the reference
+## 验证
 
-## 🔧 Technical Details
+运行可独立复现的检查：
 
-### Performance Optimizations
+```sh
+python selftest.py
+```
 
-- **Multi-Resolution Approach**:
-  - Uses an image pyramid with 4 resolution levels
-  - Initial matching at lowest resolution for maximum speed
-  - Refines matches at higher resolutions for accuracy
+检查包括透明像素隐藏颜色不影响底图、不规则边缘拼图的形状判断，以及背景和底图标记不参与匹配。
 
-- **Adaptive Scale Detection**:
-  - Uses coarse scale increments for initial matching [0.5, 1.0, 1.5]
-  - Automatically switches to finer increments (0.05) for small pieces
-  - Full scale range from 0.25 to 1.75 to detect pieces of all sizes
+开发时另外用 5 张实拍图验证了预处理和候选位置，其中同一块拼图的 4 张不同拍摄结果一致。实拍图保存在本机 `.runtime/fixtures/`，不随仓库公开；默认测试会跳过缺失的照片。拥有这些本地照片时可运行：
 
-- **Reference Image Caching**:
-  - Pre-processes and caches grayscale, blurred, and equalized versions of the reference image
-  - Creates and stores an image pyramid to avoid repeated downsampling
-  - Properly manages OpenCV resources to prevent memory leaks
+```sh
+python selftest.py --match-photos
+```
 
-- **Region of Interest (ROI) Optimization**:
-  - After finding a coarse match, only searches within a region around it
-  - Dramatically reduces the search area for refined matching
+原版浏览器匹配检查保留在 `/selftest.html`，原版相机页面保留在 `/index.html`。手机通过普通局域网 HTTP 访问时，使用默认页面的原生拍照/照片选择入口。
 
-### Computer Vision Techniques
+## 文件与数据
 
-- **Multiple Template Matching Methods**:
-  - Uses both `cv.TM_CCOEFF_NORMED` and `cv.TM_CCORR_NORMED` matching methods
-  - Each method excels at detecting different types of puzzle pieces
-  - Dynamically adjusts confidence thresholds based on the method used
+| 文件 | 用途 |
+| --- | --- |
+| `serve.py` | 网页服务、固定底图和图像处理接口 |
+| `vision.py` | 前景分割、黑白处理、轮廓过滤与定位 |
+| `mobile.html` | 手机和电脑界面 |
+| `assets/rosetta-reference.png` | 固定石碑参考图 |
+| `selftest.py` | 图像处理与匹配检查 |
+| `start.cmd` | Windows 启动器 |
+| `index.html`、原有 JS 与 `opencv.js` | 保留的上游浏览器版本 |
 
-- **Image Enhancement**:
-  - Applies histogram equalization to both reference and template images
-  - Helps with varying lighting conditions and improves matching quality
-  - Gaussian blur reduces noise for more reliable matching
+上传照片仅通过局域网发送到运行程序的电脑，不调用外部图像服务；处理接口使用有限的内存缓存，不自动把上传照片写到磁盘。运行日志、开发用照片、浏览器缓存、虚拟环境和 Python 缓存均不纳入 Git。
 
-- **Efficient Processing**:
-  - Uses `cv.INTER_NEAREST` for faster initial resizing
-  - Intelligent memory management for better performance
-
-## 🤝 Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request.
-
-1. Fork the project
-2. Create your feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add some amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
-
-## 📄 License
-
-This project is licensed under the MIT License - see the LICENSE file for details.
-
-## 🔮 Future Enhancements
-
-- Puzzle piece rotation detection
-- Machine learning integration for improved detection
-- Background worker implementation for smoother UI
-- Pinch-to-zoom for examining the reference image
-- Local storage for saving reference images between sessions
-
-## AI Chatbot Prompt for Creation
-
-Create a web-based puzzle piece detector application that uses computer vision to help users find where a specific puzzle piece belongs in a completed puzzle image. The app should:
-
-1. Capture two video streams from the device camera:
-   - Top view: For capturing the reference (completed puzzle)
-   - Bottom view: For capturing individual puzzle pieces
-
-2. Use OpenCV.js for image processing with these key features:
-   - Template matching to find pieces in the reference image
-   - Multi-scale detection to handle different piece sizes
-   - Rotation handling (0°, 90°, 180°, 270° + finer angles)
-   - Performance optimization (frame skipping, ROI tracking)
-   - Adaptive confidence thresholds (0.45 for detection, 0.60 for matching)
-
-3. UI requirements:
-   - Split-screen layout with reference image on top, piece detector on bottom
-   - Visual indicators showing match location with confidence percentage
-   - Green outline for detected pieces with rotation visualization
-   - Performance stats (processing time and FPS)
-   - Simple tap controls to capture reference and reset application
-
-4. Technical optimizations:
-   - Pre-process reference image once instead of every frame
-   - Use cached OpenCV matrices to prevent memory allocation overhead
-   - Implement adaptive rotation/scale search based on previous matches
-   - Skip frames for better performance (process every Nth frame)
-   - Use region-of-interest tracking to focus processing on likely areas
-
-5. Mobile-friendly features:
-   - Responsive layout that works on mobile devices
-   - Camera access using getUserMedia with environment-facing camera
-   - Touch controls for capturing images and resetting the app
-   - Minimal UI with clear visual feedback
-
-Use HTML5, CSS3, and vanilla JavaScript. The entire application should be self-contained in a single HTML file that loads OpenCV.js from a CDN.
-If you have any questions or suggestions, please open an issue in this repository.
-
----
-
-Made with ❤️ for puzzle enthusiasts everywhere
+参考图由使用者提供，原有红色定位标记在匹配时排除；显示时自动生成石碑透明外轮廓。代码沿用 MIT 许可证，见 [LICENSE](LICENSE)。

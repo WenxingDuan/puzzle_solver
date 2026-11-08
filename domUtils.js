@@ -110,14 +110,16 @@ class DOMUtils {
         const indicator = this.elements.matchIndicator;
         
         if (match && match.confidence >= CONFIG.DETECTION_THRESHOLD) {
-            // Percentage-based positioning
-            indicator.style.left = (match.x / referenceWidth * 100) + '%';
-            indicator.style.top = (match.y / referenceHeight * 100) + '%';
-            indicator.style.width = (match.width / referenceWidth * 100) + '%';
-            indicator.style.height = (match.height / referenceHeight * 100) + '%';
-            
-            // Set rotation
-            indicator.style.transform = `rotate(${match.rotation}deg)`;
+            // Match the canvas's centered object-fit: cover crop.
+            const canvas = this.elements.referenceCanvas;
+            const scale = Math.max(canvas.clientWidth / referenceWidth, canvas.clientHeight / referenceHeight);
+            indicator.style.left = (canvas.offsetLeft + (canvas.clientWidth - referenceWidth * scale) / 2 + match.x * scale) + 'px';
+            indicator.style.top = (canvas.offsetTop + (canvas.clientHeight - referenceHeight * scale) / 2 + match.y * scale) + 'px';
+            indicator.style.width = (match.width * scale) + 'px';
+            indicator.style.height = (match.height * scale) + 'px';
+            indicator.style.boxSizing = 'border-box';
+            // The match already describes the rotated template's bounding box.
+            indicator.style.transform = 'none';
             
             // Color-coded match outline based on confidence
             const color = this.getMatchColor(match.confidence);

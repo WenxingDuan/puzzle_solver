@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<title>Puzzle matcher self-test</title>
+<body data-test-status="RUNNING">
+<pre id="result">Loading OpenCV...</pre>
+<script>
+const output = document.getElementById('result');
+const domUtils = { updateStatus() {} };
+function fail(error) {
+    document.body.dataset.testStatus = 'FAIL';
+    output.textContent += '\nFAIL: ' + (error.stack || error.message || error);
+}
+window.addEventListener('error', event => fail(event.error || event.message));
+</script>
+<script src="opencv.js"></script>
+<script src="config.js"></script>
+<script src="imageProcessor.js"></script>
+<script src="matchDetector.js"></script>
+<script>
+const deadline = Date.now() + 30000;
+function check(condition, message) { if (!condition) throw new Error(message); }
+function run() {
+    try {
+        if (!cv.Mat) {
+            check(Date.now() < deadline, 'OpenCV initialization timed out');
+            setTimeout(run, 50);
+            return;
+        }
+        check(imageProcessor.initialize(), 'Image processor initialization failed');
+        const ref = document.createElement('canvas');
+        ref.width = 360; ref.height = 260;
+        const ctx = ref.getContext('2d');
+        const pixels = ctx.createImageData(ref.width, ref.height);
+        let seed = 123456789;
+        for (let i = 0; i < pixels.data.length; i += 4) {
+            seed ^= seed << 13; seed ^= seed >>> 17; seed ^= seed << 5;
+            pixels.data[i] = pixels.data[i + 1] = pixels.data[i + 2] = seed & 255;
+            pixels.data[i + 3] = 255;
+        }
+        ctx.putImageData(pixels, 0, 0);
+        check(imageProcessor.processReferenceImage(pixels), 'Reference processing failed');
+        output.textContent = 'OpenCV loaded; checking two different same-sized pieces.';
+        for (const [x, y] of [[55, 71], [218, 164]]) {
+            for (const angle of [0, 90, 180, 270]) {
+                const piece = document.createElement('canvas');
+                piece.width = angle % 180 ? 44 : 60;
+                piece.height = angle % 180 ? 60 : 44;
+                const pctx = piece.getContext('2d');
+                pctx.translate(piece.width / 2, piece.height / 2);
+                pctx.rotate(angle * Math.PI / 180);
+                pctx.drawImage(ref, x, y, 60, 44, -30, -22, 60, 44);
+                matchDetector.reset();
+                const match = matchDetector.detectPiece(pctx.getImageData(0, 0, piece.width, piece.height));
+                check(match && Math.abs(match.x - x) <= 1 && Math.abs(match.y - y) <= 1,
+                    `Piece (${x},${y}) rotated ${angle}: ${JSON.stringify(match)}`);
+                check(match.rotation === (360 - angle) % 360, `Wrong rotation: ${JSON.stringify(match)}`);
+                output.textContent += `\nPASS piece (${x},${y}), input ${angle} degrees`;
+            }
+        }
+        const dot = cv.Mat.zeros(40, 60, cv.CV_8UC1);
+        for (let y = 18; y <= 22; y++) for (let x = 28; x <= 32; x++) dot.ucharPtr(y, x)[0] = 255;
+        const rotated = imageProcessor.rotateImage(dot, 45);
+        const moments = cv.moments(rotated);
+        check(moments.m00 > 0 && Math.abs(moments.m10 / moments.m00 - rotated.cols / 2) < 1.5 &&
+            Math.abs(moments.m01 / moments.m00 - rotated.rows / 2) < 1.5, '45-degree rotation lost or displaced content');
+        dot.delete(); rotated.delete(); imageProcessor.reset();
+        output.textContent += '\nPASS 45-degree rotation preserves centered content\nPASS: all 9 checks';
+        document.body.dataset.testStatus = 'PASS';
+    } catch (error) { fail(error); }
+}
+run();
+</script>
+</body>
+</html>

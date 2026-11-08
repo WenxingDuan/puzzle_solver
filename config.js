@@ -33,7 +33,6 @@ const CONFIG = {
         STABLE_POSITION_THRESHOLD: 20,   // Maximum position difference for stable match
         STABLE_SIZE_THRESHOLD: 20,       // Maximum size difference for stable match
         STABLE_ROTATION_THRESHOLD: 15,   // Maximum rotation difference for stable match
-        MAX_SEARCH_ITERATIONS: 10,       // Maximum search iterations before giving up
     },
     
     // ROI settings for focused processing
@@ -61,11 +60,11 @@ const CONFIG = {
         },
         
         // Blur settings
-        BLUR_SIZE: new cv.Size(3, 3),
+        BLUR_SIZE: { width: 3, height: 3 },
         BLUR_SIGMA: 0,
         
         // Special optimizations
-        USE_COMMON_ANGLES_CACHE: true,
+        USE_COMMON_ANGLES_CACHE: false, // Same-sized camera frames contain different images.
         COMMON_ROTATION_ANGLES: [0, 15, 30, 45, 60, 75, 90, 105, 120, 135, 150, 165, 180, 
                                 195, 210, 225, 240, 255, 270, 285, 300, 315, 330, 345],
     },
