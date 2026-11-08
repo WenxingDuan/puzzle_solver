@@ -6,6 +6,9 @@
 
 已固定内置罗塞塔石碑整图，无需上传或更换参考图。
 使用：点击“拍一块”或“选择照片”，自动去背景、处理黑白并查找位置。
+本机已启用 RTX 4090 加速；五张实拍图核心处理约 1.8–2.0 秒，首次加载和上传另计，网页显示实际定位请求耗时。
+仍使用原来的预处理、文字特征和带掩膜模板匹配，搜索范围和石碑轮廓判断不变。
+GPU 不可用时自动用 CPU 计算；本机原 CPU 核心处理约 21 秒。
 结果同时提供整碑标记、转正后的拼图、对应文字放大图，以及转动方向提示。
 可以切换候选位置、放大并拖动底图，或勾选把拼图叠在石碑上查看。
 完成这一块后，点击“拍下一块”继续。
@@ -25,6 +28,9 @@
 重启：双击 start.cmd；若当前服务已在运行，无须重复启动。
 自行启动的服务可关闭命令窗口或按 Ctrl+C 停止。
 开发自检：python selftest.py（预处理与本地实拍回归）；/selftest.html 是原版浏览器匹配检查。
+GPU 自检：python test_acceleration.py。
+与加速前代码对照：python test_acceleration.py --photos --baseline-ref 5abb05b（需要本机开发用照片）。
+其他电脑安装 GPU 依赖与切换 CPU/GPU 的方法见 README.md。
 
 来源：https://github.com/Benjamin-Wegener/jigsaw_puzzle_solver
 原作者 MIT 许可证见 LICENSE；本地增加手机上传入口并修复基础匹配问题。

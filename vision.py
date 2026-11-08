@@ -2,6 +2,8 @@
 from functools import lru_cache
 from io import BytesIO
 import math
+import logging
+import os
 
 import cv2
 import numpy as np
@@ -252,7 +254,8 @@ def feature_matches(prepared, ref):
 
 def masked_scores(r, valid_ref, patch, mask):
     """Weighted NCC: exclude background and reference annotations on both sides."""
-    total = cv2.matchTemplate(valid_ref, mask, cv2.TM_CCORR)
+    # Binary-mask overlaps are integer counts; round FFT noise before thresholding.
+    total = np.rint(cv2.matchTemplate(valid_ref, mask, cv2.TM_CCORR))
     n = np.maximum(total, 1)
     sum_r = cv2.matchTemplate(r * valid_ref, mask, cv2.TM_CCORR)
     sum_rr = cv2.matchTemplate(r * r * valid_ref, mask, cv2.TM_CCORR)
@@ -281,14 +284,28 @@ def rotated_pair(binary, mask, angle, aspect):
     return b, m, corners
 
 
-def template_matches(prepared, ref):
+def cpu_peaks(r, valid_ref, silhouette, templates):
+    result = []
+    for patch, mask in templates:
+        scores = masked_scores(r, valid_ref, patch, mask)
+        coverage = np.rint(cv2.matchTemplate(silhouette, mask, cv2.TM_CCORR)) / mask.sum()
+        scores[coverage < .995] = -1
+        _, score, _, point = cv2.minMaxLoc(scores)
+        result.append((score, point))
+    return result
+
+
+def template_matches(prepared, ref, backend=None):
+    backend = backend or os.environ.get('PUZZLE_MATCH_BACKEND', 'auto')
+    if backend not in ('auto', 'cpu', 'cuda'):
+        raise ValueError('PUZZLE_MATCH_BACKEND must be auto, cpu, or cuda')
     _, binary, valid_ref, _, _, stone = ref
     factor = min(1, 900 / max(binary.shape))
     r = cv2.resize(binary, None, fx=factor, fy=factor, interpolation=cv2.INTER_AREA).astype(np.float32) / 255
     r = cv2.GaussianBlur(r, (3, 3), .6)
     silhouette = cv2.resize(stone, r.shape[1::-1], interpolation=cv2.INTER_NEAREST).astype(np.float32) / 255
     valid_ref = cv2.resize(valid_ref, r.shape[1::-1], interpolation=cv2.INTER_NEAREST).astype(np.float32) / 255
-    candidates = []
+    tasks = []
     mask = prepared['mask']
     b = np.where(mask > 0, prepared['binary'], 0).astype(np.uint8)
     expected = math.sqrt(np.count_nonzero(silhouette) / 800 * b.size / max(1, np.count_nonzero(mask)))
@@ -308,24 +325,42 @@ def template_matches(prepared, ref):
                 continue
             if np.std(patch[m > 0]) < .01:
                 continue
-            scores = masked_scores(r, valid_ref, patch, m)
-            coverage = cv2.matchTemplate(silhouette, m, cv2.TM_CCORR) / n
-            scores[coverage < .995] = -1
-            _, score, _, (x, y) = cv2.minMaxLoc(scores)
-            if score > .15:
-                polygon = (corners * np.float32([dims[0] / rb.shape[1], dims[1] / rb.shape[0]]) + [x, y]) / factor
-                candidates.append({'polygon': polygon.tolist(), 'score': round(float(score), 3),
-                                   'method': 'template', 'reliable': False, 'inliers': 0})
+            tasks.append((patch, m, corners, dims, rb.shape))
+    if not tasks:
+        return []
+    templates = [(task[0], task[1]) for task in tasks]
+    maxima = None
+    used_backend = 'cpu'
+    if backend != 'cpu':
+        try:
+            from gpu_match import peaks
+            maxima = peaks(r, valid_ref, silhouette, templates)
+            used_backend = 'cuda'
+        except ImportError:
+            if backend == 'cuda':
+                raise
+        except Exception as error:
+            if backend == 'cuda':
+                raise
+            logging.getLogger(__name__).warning('CUDA matching unavailable; using CPU: %s', error)
+    if maxima is None:
+        maxima = cpu_peaks(r, valid_ref, silhouette, templates)
+    candidates = []
+    for (_, _, corners, dims, shape), (score, (x, y)) in zip(tasks, maxima):
+        if score > .15:
+            polygon = (corners * np.float32([dims[0] / shape[1], dims[1] / shape[0]]) + [x, y]) / factor
+            candidates.append({'polygon': polygon.tolist(), 'score': round(float(score), 3),
+                               'method': 'template', 'reliable': False, 'inliers': 0, 'backend': used_backend})
     return sorted(candidates, key=lambda item: item['score'], reverse=True)
 
 
-def locate(prepared, ref_data):
+def locate(prepared, ref_data, backend=None):
     if not .008 < prepared['white_fraction'] < .65:
         return [], '黑白结果的文字过少或白色过多，请调整分割强度，确认去背景预览后重试。'
     ref = reference(ref_data)
     candidates = feature_matches(prepared, ref)
     if not candidates:
-        candidates = template_matches(prepared, ref)
+        candidates = template_matches(prepared, ref, backend=backend)
     selected = []
     for candidate in candidates:
         if not inside_stone(prepared['mask'], candidate['polygon'], ref[5]):
